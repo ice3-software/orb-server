@@ -89,14 +89,23 @@ func (self *OrbClient) writeLoop() {
 
 	for {
 
-		//changedOrb := <-self.write
+		changedOrb := <-self.write
+		bsonBuf, err := bson.Marshal(changedOrb)
 
-		// TODO: Serialise orb
-		// _, err := self.Conn.Write(...)
-		// if err != nil {
-		//		self.broadcastDisconnect()
-		//		return
-		// }
+		if err != nil {
+			// TODO Handle error...
+			fmt.Println("Error marshalling: ", err)
+		}
+		_, err = self.conn.Write(bsonBuf)
+
+		if err == io.EOF {
+			self.broadcastDisconnect()
+			return
+		} else if err != nil {
+			// TODO Handle error...
+			fmt.Println("Error writing: ", err)
+		}
+
 	}
 
 }
@@ -105,8 +114,8 @@ func (self *OrbClient) readLoop() {
 
 	for {
 
-		msgBuf := make([]byte, 2048)
-		_, err := self.conn.Read(msgBuf)
+		bsonBuf := make([]byte, 2048)
+		_, err := self.conn.Read(bsonBuf)
 
 		if err == io.EOF {
 			self.broadcastDisconnect()
@@ -114,9 +123,9 @@ func (self *OrbClient) readLoop() {
 		} else if err == nil {
 
 			newOrb := &Orb{}
-			if err := bson.Unmarshal(msgBuf, newOrb); err != nil {
+			if err := bson.Unmarshal(bsonBuf, newOrb); err != nil {
 				// TODO Handle error...
-				fmt.Println("Error marshalling: ", err)
+				fmt.Println("Error unmarshalling: ", err)
 			}
 			newOrb.ID = self.orb.ID
 
@@ -130,8 +139,8 @@ func (self *OrbClient) readLoop() {
 	}
 }
 
-func (self *OrbClient) Close() {
-	self.conn.Close()
+func (self *OrbClient) Close() error {
+	return self.conn.Close()
 }
 
 //
@@ -151,7 +160,7 @@ func NewOrbClient(conn net.Conn) *OrbClient {
 	}
 
 	go client.readLoop()
-	//go client.writeLoop()
+	go client.writeLoop()
 
 	return client
 }

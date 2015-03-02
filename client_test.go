@@ -7,16 +7,20 @@ import (
 	"io"
 	//"fmt"
 	"gopkg.in/mgo.v2/bson"
-	//"bytes"
-	//"errors"
+	"bytes"
+	"errors"
 )
 
 //
 // A mock implementation of net.Conn
+// TODO: Mutex locks here. This mock is not thread safe
 //
 type MockConn struct {
 	ReadData	[]byte
 	ReadError	error
+	WriteData 	[]byte
+	WriteError 	error
+	Closed		bool
 }
 
 func (self *MockConn) Read(b []byte) (n int, err error) {
@@ -31,8 +35,24 @@ func (self *MockConn) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (self *MockConn) Write(b []byte) (n int, err error) { return }
-func (self *MockConn) Close() error { return nil }
+func (self *MockConn) Write(b []byte) (n int, err error) {
+
+	if self.WriteError != nil {
+		err = self.WriteError
+	} else {
+		n = len(b)
+		self.WriteData = make([]byte, n)
+		copy(b, self.WriteData)
+	}
+	self.WriteError = io.EOF
+	return
+}
+
+func (self *MockConn) Close() error {
+	self.Closed = true
+	return errors.New("error")
+}
+
 func (self *MockConn) LocalAddr() net.Addr { return nil }
 func (self *MockConn) RemoteAddr() net.Addr { return nil }
 func (self *MockConn) SetDeadline(t time.Time) error { return nil }
@@ -66,9 +86,10 @@ func TestNewClientOrb(t *testing.T) {
 	if client.Disconnect() == nil {
 		t.Errorf("Client's Disconnect channel is nil")
 	}
+
 }
 
-func TestReadOrbMessage(t *testing.T) {
+func TestReadOrb(t *testing.T) {
 
 	bsonBuf, err := bson.Marshal(&Orb{
 		X: 1.0,
@@ -82,10 +103,9 @@ func TestReadOrbMessage(t *testing.T) {
 		t.Log("Marshalled test data: ", bsonBuf)
 	}
 
-	mockConn := &MockConn{
+	client := NewOrbClient(&MockConn{
 		ReadData: bsonBuf,
-	}
-	client := NewOrbClient(mockConn)
+	})
 	generatedID := client.Orb().ID
 	readOrb := <-client.Read()
 
@@ -99,9 +119,65 @@ func TestReadOrbMessage(t *testing.T) {
 		t.Errorf("ID should not be overwritten, got %q instead of %q", readOrb.ID, generatedID)
 	}
 
-
 }
 
 func TestReadEOF(t *testing.T) {
+
+	client := NewOrbClient(&MockConn{
+		ReadError: io.EOF,
+	})
+	disconnect := <-client.Disconnect()
+
+	if !disconnect {
+		t.Errorf("Should have recieved true value")
+	}
+
+}
+
+func TestReadError(t *testing.T) {
+	//t.Fail()
+}
+
+func TestReadUnmarshalError(t *testing.T) {
+	//t.Fail()
+}
+
+func TestClose(t *testing.T) {
+
+	conn := &MockConn{}
+	client := NewOrbClient(conn)
+	err := client.Close()
+
+	if !conn.Closed {
+		t.Errorf("Should have closed connection")
+	}
+	if err == nil {
+		t.Errorf("Should have returned error from connection")
+	}
+
+}
+
+func TestWriteOrb(t *testing.T) {
+
+	testOrb := Orb{
+		X: 5.0,
+		Y: 6.0,
+		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
+	}
+	bsonOrb, err := bson.Marshal(&testOrb)
+
+	if err != nil {
+		t.Error("Error marshalling the test data: ", err)
+	} else {
+		t.Log("Marshalled test data: ", bsonOrb)
+	}
+
+	conn := &MockConn{}
+	client := NewOrbClient(conn)
+	client.Write() <-testOrb
+
+	if bytes.Equal(conn.WriteData, bsonOrb) {
+		t.Errorf("Orb not marshalled correctly, got %q", conn.WriteData)
+	}
 
 }
