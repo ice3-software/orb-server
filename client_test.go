@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 	"io"
-	//"fmt"
+	//"sync"
 	"gopkg.in/mgo.v2/bson"
 	"bytes"
 	"errors"
@@ -21,6 +21,7 @@ type MockConn struct {
 	WriteData 	[]byte
 	WriteError 	error
 	Closed		bool
+	//lock		sync.RWMutex
 }
 
 func (self *MockConn) Read(b []byte) (n int, err error) {
@@ -49,6 +50,7 @@ func (self *MockConn) Write(b []byte) (n int, err error) {
 }
 
 func (self *MockConn) Close() error {
+
 	self.Closed = true
 	return errors.New("error")
 }
@@ -178,6 +180,20 @@ func TestWriteOrb(t *testing.T) {
 
 	if bytes.Equal(conn.WriteData, bsonOrb) {
 		t.Errorf("Orb not marshalled correctly, got %q", conn.WriteData)
+	}
+
+}
+
+func TestWriteEOF(t *testing.T) {
+
+	client := NewOrbClient(&MockConn{
+		WriteError: io.EOF,
+	})
+	client.Write() <-Orb{}
+	disconnect := <-client.Disconnect()
+
+	if !disconnect {
+		t.Errorf("Should have recieved true value")
 	}
 
 }

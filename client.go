@@ -18,7 +18,6 @@ type Orb struct {
 	ID			string
 }
 
-
 //
 // A construct responsibile for reading and writing Orb changes between the
 // TCP client and server.
@@ -37,7 +36,7 @@ type OrbClient struct {
 	conn 			net.Conn
 
 	//
-	// Client to broadcast Orb changes to its Room
+	// Client to broadcast its own Orb changes to its Room
 	//
 	read			chan Orb
 
@@ -56,7 +55,6 @@ type OrbClient struct {
 //
 // Getters
 //
-
 func (self *OrbClient) Orb() Orb {
 	return self.orb
 }
@@ -77,14 +75,20 @@ func (self *OrbClient) Disconnect() <-chan bool {
 	return self.disconnect
 }
 
-//
-// Unexported methods
-//
 
+//
+// Sends `true` to the disconnect channel, notifying any listeners that
+// the client has disconnected from the server
+//
 func (self *OrbClient) broadcastDisconnect() {
 	self.disconnect <-true
 }
 
+//
+// Runs a concurrent routine that deals with writing Orbs sent on the Write chan.
+// Pushing Orb data to this channel will notify the client of the states of other
+// Orbs in a Room
+//
 func (self *OrbClient) writeLoop() {
 
 	for {
@@ -110,6 +114,10 @@ func (self *OrbClient) writeLoop() {
 
 }
 
+//
+// Runs a concurrent routine that deals with reading updates sent down the
+// pipeline. These updates should be solely for state of the client's Orb.
+//
 func (self *OrbClient) readLoop() {
 
 	for {
@@ -136,17 +144,21 @@ func (self *OrbClient) readLoop() {
 			// TODO Handle error...
 			fmt.Println("Error reading: ", err)
 		}
+
 	}
+
 }
 
+//
+// Closes the connection. This is thread safe.
+//
 func (self *OrbClient) Close() error {
 	return self.conn.Close()
 }
 
 //
-// Ctor
+// Ctor. Creates a new client and starts its read / write loops.
 //
-
 func NewOrbClient(conn net.Conn) *OrbClient {
 
 	client := &OrbClient{
