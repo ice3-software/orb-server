@@ -1,12 +1,13 @@
 
 package main
 
+
+/*
 import (
 	"net"
 	"fmt"
 	"os"
 )
-
 
 type OrbClient struct {
 	X			float32
@@ -103,7 +104,7 @@ type OrbServer struct {
 	Port		uint16
 	Conns		chan *net.TCPConn
 	World		*World
-	
+
 }
 
 func (self *OrbServer) BasePath() string {
@@ -183,3 +184,4 @@ func main() {
 	}
 
 }
+*/

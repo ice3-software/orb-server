@@ -1,4 +1,12 @@
 
+package main
+
+import (
+	"code.google.com/p/go-uuid/uuid"
+	"net"
+	"io"
+)
+
 //
 // A primative type that models an Orb.
 //
@@ -18,39 +26,68 @@ type OrbClient struct {
 	//
 	// The client's Orb data.
 	//
-	Orb				Orb
+	orb				Orb
 
 	//
-	// The client'd TCP connection.
+	// The client'd connection. This will be an *net.TCPConn. We're using
+	// an interface here for mocking purposes.
 	//
-	Conn 			*net.TCPConn
+	conn 			net.Conn
 
 	//
 	// Client to broadcast Orb changes to its Room
 	//
-	Read			chan Orb
+	read			chan Orb
 
 	//
 	// For room to broadcast Orb changes to its clients
 	//
-	Write			chan Orb
+	write			chan Orb
 
 	//
 	// For client to notify the room that it has been disconnected
 	//
-	Disconnect 	chan bool
+	disconnect 		chan bool
 
 }
+
+//
+// Getters
+//
+
+func (self *OrbClient) Orb() Orb {
+	return self.orb
+}
+
+func (self *OrbClient) Conn() net.Conn {
+	return self.conn
+}
+
+func (self *OrbClient) Read() <-chan Orb {
+	return self.read
+}
+
+func (self *OrbClient) Write() chan<- Orb {
+	return self.write
+}
+
+func (self *OrbClient) Disconnect() <-chan bool {
+	return self.disconnect
+}
+
+//
+// Unexported methods
+//
 
 func (self *OrbClient) broadcastDisconnect() {
-	self.Disconnect <-true
+	self.disconnect <-true
 }
 
-func (self *OrbClient) write() {
+func (self *OrbClient) writeLoop() {
 
 	for {
 
-		changedOrb := <-self.Write
+		//changedOrb := <-self.write
 
 		// TODO: Serialise orb
 		// _, err := self.Conn.Write(...)
@@ -62,46 +99,50 @@ func (self *OrbClient) write() {
 
 }
 
-func (self *OrbClient) read() {
+func (self *OrbClient) readLoop() {
 
 	for {
 
 		msgBuf := make([]byte, 2048)
-		msgLen, err := self.Conn.Read(msgBuf)
+		_, err := self.conn.Read(msgBuf)
 
 		if err == io.EOF {
 			self.broadcastDisconnect()
 			return
 		} else {
 			// TODO: Parse message into the orb model properly
-			self.Orb = Orb{
-				X: 	123
-				Y: 	123
-				ID: self.Orb.ID
+			self.orb = Orb{
+				X: 	123,
+				Y: 	123,
+				ID: self.orb.ID,
 			}
-			self.Read <-self.Orb
+			self.read <-self.orb
 		}
 	}
 }
 
 func (self *OrbClient) Close() {
-	self.Conn.Close()
+	self.conn.Close()
 }
 
-func NewOrbClient(conn *net.TCPConn) *OrbClient {
+//
+// Ctor
+//
 
-	orb := &OrbClient{
-		Orb: Orb{
-			ID: "123", // TODO: Make this a unique string
+func NewOrbClient(conn net.Conn) *OrbClient {
+
+	client := &OrbClient{
+		orb: Orb{
+			ID: uuid.New(),
 		},
-		Conn: conn,
-		Write: make(chan Orb),
-		Read: make(chan Orb),
-		Disconnect: make(chan bool),
+		conn: conn,
+		write: make(chan Orb),
+		read: make(chan Orb),
+		disconnect: make(chan bool),
 	}
 
-	go orb.read()
-	go orb.write()
+	//go client.readLoop()
+	//go client.writeLoop()
 
-	return orb
+	return client
 }
