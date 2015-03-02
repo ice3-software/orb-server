@@ -101,11 +101,9 @@ type OrbServer struct {
 
 	Host		net.IP
 	Port		uint16
-
 	Conns		chan *net.TCPConn
-
 	World		*World
-
+	
 }
 
 func (self *OrbServer) BasePath() string {
@@ -153,7 +151,7 @@ func (self *OrbServer) Serve() {
 
 			//msgBuff := make([]byte, 1024)
 			//_, readErr := conn.Read(msgBuff)
-
+			//
 			//if readErr == nil {
 			//	conn.Write(msgBuff)
 			//} else {
