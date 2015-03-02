@@ -3,8 +3,10 @@ package main
 
 import (
 	"code.google.com/p/go-uuid/uuid"
+	"gopkg.in/mgo.v2/bson"
 	"net"
 	"io"
+	"fmt"
 )
 
 //
@@ -109,14 +111,21 @@ func (self *OrbClient) readLoop() {
 		if err == io.EOF {
 			self.broadcastDisconnect()
 			return
-		} else {
-			// TODO: Parse message into the orb model properly
-			self.orb = Orb{
-				X: 	123,
-				Y: 	123,
-				ID: self.orb.ID,
+		} else if err == nil {
+
+			newOrb := &Orb{}
+			if err := bson.Unmarshal(msgBuf, newOrb); err != nil {
+				// TODO Handle error...
+				fmt.Println("Error marshalling: ", err)
 			}
+			newOrb.ID = self.orb.ID
+
+			self.orb = *newOrb
 			self.read <-self.orb
+
+		} else {
+			// TODO Handle error...
+			fmt.Println("Error reading: ", err)
 		}
 	}
 }
@@ -141,7 +150,7 @@ func NewOrbClient(conn net.Conn) *OrbClient {
 		disconnect: make(chan bool),
 	}
 
-	//go client.readLoop()
+	go client.readLoop()
 	//go client.writeLoop()
 
 	return client
