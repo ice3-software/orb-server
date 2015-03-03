@@ -55,10 +55,6 @@ type OrbClient struct {
 //
 // Getters
 //
-func (self *OrbClient) Orb() Orb {
-	return self.orb
-}
-
 func (self *OrbClient) Conn() net.Conn {
 	return self.conn
 }
@@ -120,6 +116,10 @@ func (self *OrbClient) writeLoop() {
 //
 func (self *OrbClient) readLoop() {
 
+	self.orb = Orb{
+		ID: uuid.New(),
+	}
+
 	for {
 
 		bsonBuf := make([]byte, 2048)
@@ -129,6 +129,8 @@ func (self *OrbClient) readLoop() {
 			self.broadcastDisconnect()
 			return
 		} else if err == nil {
+
+			// NOTE Race condition here.
 
 			newOrb := &Orb{}
 			if err := bson.Unmarshal(bsonBuf, newOrb); err != nil {
@@ -159,15 +161,12 @@ func (self *OrbClient) Close() error {
 //
 // Ctor. Creates a new client and starts its read / write loops.
 //
-func NewOrbClient(conn net.Conn) *OrbClient {
+func NewOrbClient(conn net.Conn, readCh chan Orb) *OrbClient {
 
 	client := &OrbClient{
-		orb: Orb{
-			ID: uuid.New(),
-		},
 		conn: conn,
 		write: make(chan Orb),
-		read: make(chan Orb),
+		read: readCh,
 		disconnect: make(chan bool),
 	}
 
