@@ -19,6 +19,7 @@ type MockConn struct {
 	WriteError 	error
 	Closed		bool
 	//lock		sync.RWMutex
+	Written		chan bool
 }
 
 func (self *MockConn) Read(b []byte) (n int, err error) {
@@ -41,6 +42,9 @@ func (self *MockConn) Write(b []byte) (n int, err error) {
 		n = len(b)
 		self.WriteData = make([]byte, n)
 		copy(b, self.WriteData)
+		if self.Written != nil {
+			self.Written <-true
+		}
 	}
 	self.WriteError = io.EOF
 	return
