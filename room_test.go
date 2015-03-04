@@ -40,17 +40,14 @@ func TestReadsBroadcastToRoom(t *testing.T) {
 		Y: 2.0,
 		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
 	})
+
 	room := NewRoom()
 	writtenChan := make(chan bool)
-	reciever1 := &MockConn{
-		Written: writtenChan,
-	}
-	reciever2 := &MockConn{
-		Written: writtenChan,
-	}
-	sender := &MockConn{
-		ReadData: bsonOrb,
-	}
+
+	reciever1 := NewMockConn(writtenChan)
+	reciever2 := NewMockConn(writtenChan)
+	sender := NewMockConn(writtenChan)
+	sender.SetMockReadData(bsonOrb)
 
 	room.Join() <-JoinRequest{ Conn: reciever1, }
 	room.Join() <-JoinRequest{ Conn: reciever2, }
@@ -59,8 +56,8 @@ func TestReadsBroadcastToRoom(t *testing.T) {
 	<-writtenChan
 	<-writtenChan
 
-	orb1 := OrbFromBSON(t, reciever1.WriteData)
-	orb2 := OrbFromBSON(t, reciever2.WriteData)
+	orb1 := OrbFromBSON(t, reciever1.MockWriteData())
+	orb2 := OrbFromBSON(t, reciever2.MockWriteData())
 
 	AssertOrbAt(t, orb1, 1.0, 2.0)
 	AssertOrbAt(t, orb2, 1.0, 2.0)

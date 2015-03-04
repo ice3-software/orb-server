@@ -4,13 +4,12 @@ import (
 	"testing"
 	"io"
 	//"sync"
-	"gopkg.in/mgo.v2/bson"
 	"bytes"
 )
 
 func TestNewClientOrb(t *testing.T) {
 
-	mockConn := &MockConn{}
+	mockConn := NewMockConn(nil)
 	read := make(chan Orb)
 	client := NewOrbClient(mockConn, read);
 
@@ -34,29 +33,20 @@ func TestNewClientOrb(t *testing.T) {
 
 func TestReadOrb(t *testing.T) {
 
-	bsonBuf, err := bson.Marshal(&Orb{
+	bsonOrb := BSONFromOrb(t, Orb{
 		X: 1.0,
 		Y: 2.0,
 		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
 	})
 
-	if err != nil {
-		t.Error("Error marshalling the test data: ", err)
-	} else {
-		t.Log("Marshalled test data: ", bsonBuf)
-	}
+	mockConn := NewMockConn(nil)
+	mockConn.SetMockReadData(bsonOrb)
 
-	client := NewOrbClient(&MockConn{
-		ReadData: bsonBuf,
-	}, make(chan Orb))
+	client := NewOrbClient(mockConn, make(chan Orb))
 	readOrb := <-client.Read()
 
-	if readOrb.X != 1 {
-		t.Errorf("X not unmarshaled correctly, got %f", readOrb.X)
-	}
-	if readOrb.Y != 2 {
-		t.Errorf("Y not unmarshaled correctly, got %f", readOrb.Y)
-	}
+	AssertOrbAt(t, readOrb, 1.0, 2.0)
+
 	if readOrb.ID == "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d" {
 		t.Errorf("ID should not be overwritten, got %q instead of original value.", readOrb.ID)
 	}
@@ -65,12 +55,12 @@ func TestReadOrb(t *testing.T) {
 
 func TestReadEOF(t *testing.T) {
 
-	client := NewOrbClient(&MockConn{
-		ReadError: io.EOF,
-	}, make(chan Orb))
-	disconnect := <-client.Disconnect()
+	mockConn := NewMockConn(nil)
+	mockConn.SetMockReadError(io.EOF)
 
-	if !disconnect {
+	client := NewOrbClient(mockConn, make(chan Orb))
+
+	if !<-client.Disconnect() {
 		t.Errorf("Should have recieved true value")
 	}
 
@@ -86,11 +76,11 @@ func TestReadUnmarshalError(t *testing.T) {
 
 func TestClose(t *testing.T) {
 
-	conn := &MockConn{}
-	client := NewOrbClient(conn, make(chan Orb))
+	mockConn := NewMockConn(nil)
+	client := NewOrbClient(mockConn, make(chan Orb))
 	err := client.Close()
 
-	if !conn.Closed {
+	if !mockConn.Closed() {
 		t.Errorf("Should have closed connection")
 	}
 	if err == nil {
@@ -106,33 +96,33 @@ func TestWriteOrb(t *testing.T) {
 		Y: 6.0,
 		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
 	}
-	bsonOrb, err := bson.Marshal(&testOrb)
+	bsonOrb := BSONFromOrb(t, testOrb)
 
-	if err != nil {
-		t.Error("Error marshalling the test data: ", err)
-	} else {
-		t.Log("Marshalled test data: ", bsonOrb)
-	}
+	conn := NewMockConn(nil)
+	conn.SetMockReadData(bsonOrb)
 
-	conn := &MockConn{}
 	client := NewOrbClient(conn, make(chan Orb))
 	client.Write() <-testOrb
 
-	if !bytes.Equal(conn.WriteData, bsonOrb) {
-		t.Errorf("Orb not marshalled correctly, got %q", conn.WriteData)
+	// @note No guarentee that the write has actually finished here. We need
+	// to block on a `written` channel in the connection and _then_ perform
+	// the assertion
+
+	if !bytes.Equal(conn.MockWriteData(), bsonOrb) {
+		t.Errorf("Orb not marshalled correctly, got %q", conn.MockWriteData())
 	}
 
 }
 
 func TestWriteEOF(t *testing.T) {
 
-	client := NewOrbClient(&MockConn{
-		WriteError: io.EOF,
-	}, make(chan Orb))
-	client.Write() <-Orb{}
-	disconnect := <-client.Disconnect()
+	conn := NewMockConn(nil)
+	conn.SetMockWriteError(io.EOF)
 
-	if !disconnect {
+	client := NewOrbClient(conn, make(chan Orb))
+	client.Write() <-Orb{}
+
+	if !<-client.Disconnect() {
 		t.Errorf("Should have recieved true value")
 	}
 
