@@ -118,7 +118,7 @@ func TestWriteOrb(t *testing.T) {
 	client := NewOrbClient(conn, make(chan Orb))
 	client.Write() <-testOrb
 
-	if bytes.Equal(conn.WriteData, bsonOrb) {
+	if !bytes.Equal(conn.WriteData, bsonOrb) {
 		t.Errorf("Orb not marshalled correctly, got %q", conn.WriteData)
 	}
 

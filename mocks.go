@@ -41,8 +41,8 @@ func (self *MockConn) Write(b []byte) (n int, err error) {
 	} else {
 		n = len(b)
 		self.WriteData = make([]byte, n)
-		copy(b, self.WriteData)
-		if self.Written != nil {
+		copy(self.WriteData, b)
+		if self.Written != nil && n > 0 {
 			self.Written <-true
 		}
 	}

@@ -14,9 +14,6 @@ type JoinRequest struct {
 
 func (self JoinRequest) broadcastJoined() {
 
-	// TODO: Is it safe to check whether a channel is nil? Are channels
-	// mutatable across different threads?
-
 	if self.Joined != nil {
 		self.Joined <-true
 		close(self.Joined)
@@ -39,8 +36,9 @@ func (self *Room) Read() <-chan Orb {
 }
 
 func (self *Room) broadcastOrb(orb Orb) {
-	for _, client := range self.clients {
-		fmt.Println("Printing %q to %q", orb, client)
+	fmt.Println("Broadcasting change")
+	for index, client := range self.clients {
+		fmt.Printf("Printing {%q, %f, %f} to client %d\n", orb.ID, orb.X, orb.Y, index)
 		client.Write() <-orb
 	}
 }
@@ -54,12 +52,14 @@ func (self *Room) mainLoop() {
 		select {
 
 			case joinReq := <-self.join:
+			fmt.Printf("New orb client connected. %q clients\n", len(self.clients))
 			newClient := NewOrbClient(joinReq.Conn, self.sharedRead)
 			self.clients = append(self.clients, newClient)
 			joinReq.broadcastJoined()
 			break
 
 			case orbChange := <-self.sharedRead:
+			fmt.Println("Orb changed: ", orbChange.ID)
 			self.broadcastOrb(orbChange)
 			break
 		}

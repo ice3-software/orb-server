@@ -90,12 +90,14 @@ func (self *OrbClient) writeLoop() {
 	for {
 
 		changedOrb := <-self.write
+		fmt.Println("Change orb: ", changedOrb)
 		bsonBuf, err := bson.Marshal(changedOrb)
 
 		if err != nil {
 			// TODO Handle error...
 			fmt.Println("Error marshalling: ", err)
 		}
+		fmt.Printf("Writing %q\n", bsonBuf)
 		_, err = self.conn.Write(bsonBuf)
 
 		if err == io.EOF {
@@ -123,14 +125,12 @@ func (self *OrbClient) readLoop() {
 	for {
 
 		bsonBuf := make([]byte, 2048)
-		_, err := self.conn.Read(bsonBuf)
+		l, err := self.conn.Read(bsonBuf)
 
 		if err == io.EOF {
 			self.broadcastDisconnect()
 			return
-		} else if err == nil {
-
-			// NOTE Race condition here.
+		} else if err == nil && l > 0 {
 
 			newOrb := &Orb{}
 			if err := bson.Unmarshal(bsonBuf, newOrb); err != nil {

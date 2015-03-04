@@ -3,7 +3,8 @@ package main
 
 import (
 	"testing"
-	"bytes"
+	//"fmt"
+	//"errors"
 )
 
 func TestNewRoom(t *testing.T) {
@@ -34,30 +35,34 @@ func TestJoinRoom(t *testing.T) {
 
 func TestReadsBroadcastToRoom(t *testing.T) {
 
-	bsonOrb := BSONOrb(t)
+	bsonOrb := BSONFromOrb(t, Orb{
+		X: 1.0,
+		Y: 2.0,
+		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
+	})
 	room := NewRoom()
+	writtenChan := make(chan bool)
+	reciever1 := &MockConn{
+		Written: writtenChan,
+	}
+	reciever2 := &MockConn{
+		Written: writtenChan,
+	}
 	sender := &MockConn{
 		ReadData: bsonOrb,
 	}
-	reciever1 := &MockConn{
-		Written: make(chan bool),
-	}
-	reciever2 := &MockConn{
-		Written: make(chan bool),
-	}
 
-	room.Join() <-JoinRequest{ Conn: sender, }
 	room.Join() <-JoinRequest{ Conn: reciever1, }
 	room.Join() <-JoinRequest{ Conn: reciever2, }
+	room.Join() <-JoinRequest{ Conn: sender, }
 
-	<-reciever1.Written
-	//<-reciever2.Written
+	<-writtenChan
+	<-writtenChan
 
-	if !bytes.Equal(reciever1.WriteData, bsonOrb) {
-		t.Errorf("Expected %q, got %q", bsonOrb, reciever1.WriteData)
-	}
-	//if !bytes.Equal(reciever2.WriteData, bsonOrb) {
-	//	t.Errorf("Expected %q, got %q", bsonOrb, reciever2.WriteData)
-	//}
+	orb1 := OrbFromBSON(t, reciever1.WriteData)
+	orb2 := OrbFromBSON(t, reciever2.WriteData)
+
+	AssertOrbAt(t, orb1, 1.0, 2.0)
+	AssertOrbAt(t, orb2, 1.0, 2.0)
 
 }
