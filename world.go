@@ -3,7 +3,6 @@ package main
 
 import (
 	"net"
-	"fmt"
 )
 
 type World struct{
@@ -36,6 +35,10 @@ func (self *World) startLoop() {
 	}
 }
 
+func (self *World) Start() {
+	go self.startLoop()
+}
+
 func (self *World) Register(conn net.Conn) {
 	self.join <-conn
 }
@@ -44,7 +47,5 @@ func NewWorld() *World {
 	world := &World{
 		join: make(chan net.Conn)
 	}
-	go world.startLoop()
-
 	return world
 }
