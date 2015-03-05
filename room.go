@@ -24,15 +24,15 @@ type Room struct {
 	clients		[]*OrbClient
 	join		chan JoinRequest
 	sharedRead 	chan Orb
-	publicRead 	chan Orb
+	started 	chan bool
+}
+
+func (self *Room) Started() chan<- started {
+	return self.started
 }
 
 func (self *Room) Join() chan<- JoinRequest {
 	return self.join
-}
-
-func (self *Room) Read() <-chan Orb {
-	return self.publicRead
 }
 
 func (self *Room) broadcastOrb(orb Orb) {
@@ -47,8 +47,18 @@ func (self *Room) mainLoop() {
 
 	self.clients = make([]*OrbClient, 0, 5)
 	self.sharedRead = make(chan Orb)
+	self.started = make(chan bool)
+
+	var started bool
 
 	for {
+
+		var read chan Orb
+
+		if started {
+			read = self.sharedRead
+		}
+
 		select {
 
 			case joinReq := <-self.join:
@@ -56,9 +66,15 @@ func (self *Room) mainLoop() {
 			newClient := NewOrbClient(joinReq.Conn, self.sharedRead)
 			self.clients = append(self.clients, newClient)
 			joinReq.broadcastJoined()
+
+			if len(self.clients) > 5 {
+				started = true
+				self.started <-started
+			}
+
 			break
 
-			case orbChange := <-self.sharedRead:
+			case orbChange := <-read:
 			fmt.Println("Orb changed: ", orbChange.ID)
 			self.broadcastOrb(orbChange)
 			break
