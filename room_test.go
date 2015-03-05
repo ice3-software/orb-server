@@ -33,6 +33,20 @@ func TestJoinRoom(t *testing.T) {
 
 }
 
+func TestRoomStarts(t *testing.T) {
+
+	room := NewRoom(5)
+
+	for i := 0; i < 5; i++ {
+		room.Join() <-JoinRequest{ Conn: NewMockConn(nil), }
+	}
+
+	if !<-room.Started() {
+		t.Error("Expecting true on started channel")
+	}
+
+}
+
 func TestReadsBroadcastToRoom(t *testing.T) {
 
 	bsonOrb := BSONFromOrb(t, Orb{

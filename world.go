@@ -24,8 +24,9 @@ func (self *World) startLoop() {
 		// Here, if we have any pending requests, we retrieve the current lobby's join
 		// channel. Whether the request is actually sent to the channel or not depends
 		// entirely on whether the lobby is still open. If the current lobby has been
-		// closed at this point, `currentLobbyJoin` will be nil until we recieve from
-		// its `Started` channel and have invalidated the lobby.
+		// closed at this point, `currentLobbyJoin` will never be received upon because
+		// the Room's internal join channel will have been nilled out. We need to then
+		// recieve from its `Started` channel and invalidate the lobby.
 
 		var currentLobbyJoin chan<- JoinRequest
 
@@ -44,7 +45,7 @@ func (self *World) startLoop() {
 
 			case currentLobbyJoin <-joinReq :
 
-				// Note that if the Lobby is closed, its join chan will be nil, turning off
+				// Note that if the Lobby is closed, its internal join chan will be nil, turning off
 				// this select case and guarding against any join requests being made until
 				// its Started message has been processed and the lobby has been invalidated.
 
