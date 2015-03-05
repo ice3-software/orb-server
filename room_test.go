@@ -9,7 +9,7 @@ import (
 
 func TestNewRoom(t *testing.T) {
 
-	room := NewRoom()
+	room := NewRoom(1)
 
 	if room == nil {
 		t.Error("Room not created")
@@ -18,7 +18,7 @@ func TestNewRoom(t *testing.T) {
 
 func TestJoinRoom(t *testing.T) {
 
-	room := NewRoom()
+	room := NewRoom(1)
 	mockConn := &MockConn{}
 	joined := make(chan bool)
 
@@ -41,7 +41,7 @@ func TestReadsBroadcastToRoom(t *testing.T) {
 		ID: "4aa4ec0e-cf3f-4f4d-827f-f1415b51d26d",
 	})
 
-	room := NewRoom()
+	room := NewRoom(3)
 	writtenChan := make(chan bool)
 
 	reciever1 := NewMockConn(writtenChan)
