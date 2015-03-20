@@ -10,7 +10,9 @@ import (
 )
 
 //
-// A mock implementation of net.Conn
+// A mock implementation of net.Conn. This will be used across multiple goroutines
+// in the unit tests so I've tried to make it as bullet proof as possible using a
+// read / write lock.
 //
 type MockConn struct {
 

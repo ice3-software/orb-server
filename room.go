@@ -68,6 +68,9 @@ func (self *Room) mainLoop() {
 
 			case startedCh <-started :
 				fmt.Println("Sent starting message...")
+				//for _, client := range self.clients {
+				//	client.Listen()
+				//}
 				startedCh = nil
 				break
 
@@ -91,7 +94,7 @@ func (self *Room) mainLoop() {
 					startedCh = self.started
 
 					// Nil the internal join channel so we don't accept any more join requests.
-					// Any routines that have a handle on this channel will not just block when
+					// Any routines that have a handle on this channel will just block when
 					// sending requests. They should listen for messages on the Started chan and
 					// subsequently assume that this room is now closed.
 

@@ -2,12 +2,14 @@
 package main
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"gopkg.in/mgo.v2/bson"
 	"net"
 	"io"
 	"fmt"
+	//"bytes"
 )
+
+const Deliminator = "\nEND\n"
 
 //
 // A primative type that models an Orb.
@@ -23,11 +25,6 @@ type Orb struct {
 // TCP client and server.
 //
 type OrbClient struct {
-
-	//
-	// The client's Orb data.
-	//
-	orb				Orb
 
 	//
 	// The client'd connection. This will be an *net.TCPConn. We're using
@@ -94,18 +91,21 @@ func (self *OrbClient) writeLoop() {
 		bsonBuf, err := bson.Marshal(changedOrb)
 
 		if err != nil {
-			// TODO Handle error...
-			fmt.Println("Error marshalling: ", err)
+			fmt.Println("Error marshalling (todo handle properly): ", err)
 		}
-		fmt.Printf("Writing %q\n", bsonBuf)
+
+		//buff := bytes.NewBuffer(bson)
+		//buff.append(Deliminator)
+		bsonBuf = append(bsonBuf, []byte(Deliminator)...)
+
+		fmt.Printf("Writing %s\n", bsonBuf)
 		_, err = self.conn.Write(bsonBuf)
 
 		if err == io.EOF {
 			self.broadcastDisconnect()
 			return
 		} else if err != nil {
-			// TODO Handle error...
-			fmt.Println("Error writing: ", err)
+			fmt.Println("Error writing (todo handle properly): ", err)
 		}
 
 	}
@@ -117,10 +117,6 @@ func (self *OrbClient) writeLoop() {
 // pipeline. These updates should be solely for state of the client's Orb.
 //
 func (self *OrbClient) readLoop() {
-
-	self.orb = Orb{
-		ID: uuid.New(),
-	}
 
 	for {
 
@@ -134,17 +130,13 @@ func (self *OrbClient) readLoop() {
 
 			newOrb := &Orb{}
 			if err := bson.Unmarshal(bsonBuf, newOrb); err != nil {
-				// TODO Handle error...
-				fmt.Println("Error unmarshalling: ", err)
+				fmt.Println("Error unmarshalling (todo handle properly): ", err)
+			} else {
+				self.read <-*newOrb
 			}
-			newOrb.ID = self.orb.ID
-
-			self.orb = *newOrb
-			self.read <-self.orb
 
 		} else {
-			// TODO Handle error...
-			fmt.Println("Error reading: ", err)
+			fmt.Println("Error reading (todo handle properly): ", err)
 		}
 
 	}
@@ -157,6 +149,15 @@ func (self *OrbClient) readLoop() {
 func (self *OrbClient) Close() error {
 	return self.conn.Close()
 }
+
+//
+//
+//
+//func (self *OrbClient) Listen() {
+//
+//	go self.readLoop()
+//	go self.writeLoop()
+//}
 
 //
 // Ctor. Creates a new client and starts its read / write loops.

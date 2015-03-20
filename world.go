@@ -11,10 +11,18 @@ type World struct{
 	join	chan net.Conn
 }
 
+func (self *World) bumpLobby() {
+
+	if self.lobby != nil {
+		self.rooms = append(self.rooms, self.lobby)
+	}
+	self.lobby = NewRoom(1)
+}
+
 func (self *World) startLoop() {
 
+	self.bumpLobby()
 	self.rooms = make([]*Room, 0)
-	self.lobby = NewRoom(5)
 
 	var joinReq JoinRequest
 	pendingJoinReqs := make([]JoinRequest, 0)
@@ -38,9 +46,7 @@ func (self *World) startLoop() {
 		select {
 
 			case <-self.lobby.Started() :
-
-				self.rooms = append(self.rooms, self.lobby)
-				self.lobby = NewRoom(5)
+				self.bumpLobby()
 				break
 
 			case currentLobbyJoin <-joinReq :
