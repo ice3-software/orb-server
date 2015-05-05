@@ -43,8 +43,8 @@ func (self *OrbServer) Listen() error {
 
 func NewOrbServer() *OrbServer {
 	return &OrbServer{
-		host: net.IPv4(192, 168, 1, 75),
-		port: 9090,
+		host: net.IPv4(127, 0, 0, 1),
+		port: 10101,
 		world: NewWorld(),
 	}
 }

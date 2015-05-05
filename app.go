@@ -12,7 +12,7 @@ func main() {
 	err := server.Listen()
 
 	if err != nil {
-		fmt.Println("Could not serve")
+		fmt.Println("Could not serve: ", err)
 		os.Exit(1)
 	}
 
